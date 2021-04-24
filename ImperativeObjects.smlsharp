@@ -1,0 +1,118 @@
+val c =
+    let
+        val x = ref 1
+    in
+        {
+          get = fn (_ : unit) => !x,
+          inc = fn (_ : unit) => x := 1 + !x
+        }
+    end
+
+(*
+#inc c ();
+#get c ();
+
+#inc c (); #inc c (); #get c ();
+*)
+
+val newCounter =
+ fn (_ : unit) => let
+     val x = ref 1
+ in
+     {
+       get = fn (_ : unit) => !x,
+       inc = fn (_ : unit) => x := 1 + !x
+     }
+ end
+
+
+val newResetCounter =
+ fn (_ : unit) => let
+     val x = ref 1
+ in
+     {
+       get = fn (_ : unit) => !x,
+       inc = fn (_ : unit) => x := 1 + !x,
+       reset = fn (_ : unit) => x := 1
+     }
+ end
+
+(* type Counter = { *)
+(*     get: unit -> int, *)
+(*     inc: unit -> unit, *)
+(*     ... *)
+(* } *)
+
+(* val inc3 = fn (c : Counter) => (#inc c (); #inc c (); #inc c ()) *)
+
+fun inc3 {get = x, inc = y, ...} = (y (); y ();  y ())
+
+val cc = newCounter ()
+val rc = newResetCounter ()
+
+val counterClass =
+ fn (r : {x : int ref, ...}) =>
+    {
+      get = fn (_ : unit) => !(#x r),
+      inc = fn (_ : unit) => (#x r) := 1 + !(#x r)
+    }
+
+val ngCounter =
+ fn (_ : unit) => let
+     val r = {x = ref 1}
+ in
+     counterClass r
+ end
+
+val resetCounterClass =
+ fn (r : {x : int ref, ...}) =>
+    let
+        val super = counterClass r
+    in
+        {
+          get = #get super,
+          inc = #inc super,
+          reset = fn (_ : unit) => (#x r := 1)
+        }
+    end
+
+val ngResetCounter =
+ fn (_ : unit) => let
+     val r = {x = ref 1}
+ in
+     resetCounterClass r
+ end
+
+(* *)
+val backupCounterClass =
+ fn (r : {x : int ref, b : int ref, ...}) =>
+    let
+        val super = resetCounterClass r
+    in
+        {
+          get = #get super,
+          inc = #inc super,
+          reset = fn (_ : unit) => (#x r) := !(#b r),
+          backup = fn (_ : unit) => (#b r) := !(#x r)
+        }
+    end
+
+
+val setCounterClass =
+ fn (r : {x : int ref, ...}) =>
+    let
+        val rec fakeself = fn (self : {get : unit -> int, set : int -> unit, inc : unit -> unit}) =>
+                              {
+                                get = fn (_ : unit) => !(#x r),
+                                set = fn (i : int) => (#x r) := i,
+                                inc = fn (_ : unit) => (#set self) (1 + (#get self ()))
+                              }
+    in
+    end
+
+val newSetCounter =
+ fn (_ : unit) => let
+     val r = {x = ref 1}
+ in
+     setCounterClass r
+ end
